@@ -1,2 +1,2 @@
 # Parallel Programming
-SCUT course. 
+SCUT Course. Labs. 
