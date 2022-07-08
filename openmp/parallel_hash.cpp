@@ -10,69 +10,72 @@
 
 using namespace std;
 
-const int MX = 500000; 
+const int MX = 50000;
+const int T = 3; 
 
-string rd;
-string buf[MX];
-unordered_map<string, int> mp; 
+string str;
+string buf[T][MX];
+unordered_map<string, int> mp[T];
+volatile int head[T], tail[T], nxt[T];
 
 
-int main() {
+int main(int argc, char** argv) {
 
-	fstream f;
-	f.open("5M_low.txt", ios::in);
+	string file = argv[1];
+	string op = argv[2]; 
+	fstream f, w;
+	f.open(file, ios::in);
+	w.open("out.txt", ios::out);
 
 	double start, end;
 	start = omp_get_wtime();
 
-	volatile int head, tail, nxt; 
-	head = tail = 0; 
+	for (int i = 0; i < T; ++i) {
+		head[i] = tail[i] = nxt[i] = 0; 
+	}
 	bool mut;
 	mut = 0;
 
-	//fstream log; 
-	//log.open("log.txt", ios::out);
 
-	#pragma omp parallel num_threads(2)
+#pragma omp parallel num_threads(T)
 	{
 		int t = omp_get_thread_num();
 		if (t == 0) {
-			while (f >> rd) {
-				buf[tail] = rd;
-				//log << '(' << head << ',' << tail << "): " << buf[tail] << '\n';
-				nxt = (tail + 1) % MX; 
-				while (nxt == head); 
-				tail = nxt;
+			while (f >> str) {
+				int p = str[0] % (T-1) + 1; 
+				buf[p][tail[p]] = str;
+				nxt[p] = (tail[p] + 1) % MX;
+				while (nxt[p] == head[p]);
+				tail[p] = nxt[p];
 			}
 			mut = 1;
 		}
 		else {
 			while (mut == 0) {
-				while (head != tail) {
-					mp[buf[head]]++;
-					//log << '(' << head << ',' << tail << "): " << buf[head] << '\n';
-					head = (head + 1) % MX; 
+				while (head[t] != tail[t]) {
+					mp[t][buf[t][head[t]]]++;
+					head[t] = (head[t] + 1) % MX;
 				}
 			}
-			while (head != tail) {
-				mp[buf[head]]++;
-				//log << '(' << head << ',' << tail << "): " << buf[head] << '\n';
-				head = (head + 1) % MX; 
+			while (head[t] != tail[t]) {
+				mp[t][buf[t][head[t]]]++;
+				head[t] = (head[t] + 1) % MX;
+			}
+#			pragma omp critical
+			for (auto& it : mp[t]) {
+				w << it.first << '\n' << it.second << '\n';
 			}
 		}
 	}
 
-	//log.close(); 
+	cout << op << ':' << mp[op[0] % (T-1) + 1][op] << '\n';
+
+	end = omp_get_wtime();
+	cout << end - start << "s\n";
 
 	f.close();
-	f.open("out.txt", ios::out);
-
-	for (auto& it : mp) {
-		f << it.first << '=' << it.second << '\n';
-	}
-	
-	end = omp_get_wtime();
-	printf("%lfs\n", end - start);
+	w.close(); 
 
 	return 0;
 }
+
